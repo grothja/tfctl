@@ -17,6 +17,7 @@ module Tfctl
         def make(account:, config:)
             target_dir = "#{PROJECT_ROOT}/.tfctl/#{config[:config_name]}/#{account[:name]}"
             tf_version = config.fetch(:tf_required_version, '>= 0.12.0')
+            tf_version_set = tf_version.split(' ')[-1]
             aws_provider_version = config.fetch(:aws_provider_version, '>= 2.14')
 
             FileUtils.mkdir_p target_dir
@@ -36,6 +37,16 @@ module Tfctl
                     },
                 },
             }
+
+            if tf_version_set >= '0.14.0'
+                terraform_block['terraform']['required_providers'] = {
+                    'aws' => {
+                        'source'  => 'hashicorp/aws',
+                        'version' => aws_provider_version,
+                    },
+                }
+            end
+
             write_json_block("#{target_dir}/terraform.tf.json", terraform_block)
 
             provider_block = {
@@ -49,6 +60,11 @@ module Tfctl
                     },
                 },
             }
+
+            if tf_version_set >= '0.14.0'
+                provider_block['provider']['aws'].delete('version')
+            end
+
             write_json_block("#{target_dir}/provider.tf.json", provider_block)
 
             vars_block = {
